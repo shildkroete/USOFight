@@ -245,6 +245,26 @@
   .touch-pow  { border-color: rgba(255,80,80,0.50); }
   .touch-kck  { border-color: rgba(255,200,0,0.50); }
   .touch-blk  { border-color: rgba(50,220,100,0.50); }
+  /* ---- DIFFICULTY SELECTOR ---- */
+  #difficulty-selector { margin-bottom: 8px; text-align: center; }
+  .diff-label { color: #aaa; font-size: 13px; letter-spacing: 2px; margin-bottom: 6px; }
+  .diff-buttons { display: flex; gap: 10px; justify-content: center; }
+  .diff-buttons .diff-btn {
+    font-size: 15px;
+    padding: 5px 18px;
+    margin-top: 0;
+    background: #3a3a3a;
+    color: #888;
+    border-color: #555;
+    letter-spacing: 2px;
+  }
+  .diff-buttons .diff-btn.diff-active {
+    background: #ff8800;
+    color: #000;
+    border-color: #000;
+  }
+  .diff-buttons .diff-btn[data-diff="lotte"].diff-active { background: #33cc66; }
+  .diff-buttons .diff-btn[data-diff="hart"].diff-active  { background: #ff3333; color: #fff; }
 </style>
 </head>
 <body>
@@ -269,6 +289,14 @@
   <div id="select-screen" class="screen hidden">
     <h1>CHOOSE YOUR FIGHTER</h1>
     <div class="info" id="select-info">PLAYER 1: WÄHLE EINEN KÄMPFER</div>
+    <div id="difficulty-selector" class="hidden">
+      <div class="diff-label">SCHWIERIGKEIT</div>
+      <div class="diff-buttons">
+        <button class="diff-btn" data-diff="lotte">LOTTE</button>
+        <button class="diff-btn diff-active" data-diff="normal">NORMAL</button>
+        <button class="diff-btn" data-diff="hart">HART</button>
+      </div>
+    </div>
     <div class="fighters" id="fighter-grid"></div>
     <button id="btn-fight" disabled>FIGHT!</button>
     <button id="btn-back" style="background:#555;color:#fff;font-size:14px;padding:5px 14px;">ZURÜCK</button>
@@ -613,6 +641,7 @@ function makeFighterGrid() {
 // GAME STATE
 // ==================================================
 let mode = '1p';
+let difficulty = 'normal';
 let p1Idx = -1, p2Idx = -1;
 let selectingFor = 1;
 
@@ -685,18 +714,48 @@ class Player {
       this.aiTimer--;
       if (this.aiTimer <= 0) {
         const dist = Math.abs(this.x - other.x);
-        if (dist < 90 && this.state.attackCooldown <= 0) {
-          this.aiAction = Math.random() < 0.5 ? 'punch' : 'kick';
-          this.aiTimer = 30;
-        } else if (dist > 120) {
-          this.aiAction = 'approach';
-          this.aiTimer = 20;
-        } else if (Math.random() < 0.3) {
-          this.aiAction = 'retreat';
-          this.aiTimer = 25;
+        if (difficulty === 'lotte') {
+          // Slow and passive: mostly wanders, rarely attacks
+          if (dist < 90 && this.state.attackCooldown <= 0 && Math.random() < 0.15) {
+            this.aiAction = Math.random() < 0.5 ? 'punch' : 'kick';
+            this.aiTimer = 60;
+          } else if (Math.random() < 0.4) {
+            this.aiAction = 'approach';
+            this.aiTimer = 50;
+          } else {
+            this.aiAction = 'retreat';
+            this.aiTimer = 50;
+          }
+        } else if (difficulty === 'hart') {
+          // Fast and aggressive
+          if (dist < 90 && this.state.attackCooldown <= 0) {
+            this.aiAction = Math.random() < 0.8 ? 'punch' : 'kick';
+            this.aiTimer = 12;
+          } else if (dist > 100) {
+            this.aiAction = 'approach';
+            this.aiTimer = 8;
+          } else if (Math.random() < 0.15) {
+            this.aiAction = 'retreat';
+            this.aiTimer = 10;
+          } else {
+            this.aiAction = Math.random() < 0.6 ? 'punch' : 'block';
+            this.aiTimer = 10;
+          }
         } else {
-          this.aiAction = 'block';
-          this.aiTimer = 15;
+          // Normal
+          if (dist < 90 && this.state.attackCooldown <= 0) {
+            this.aiAction = Math.random() < 0.5 ? 'punch' : 'kick';
+            this.aiTimer = 30;
+          } else if (dist > 120) {
+            this.aiAction = 'approach';
+            this.aiTimer = 20;
+          } else if (Math.random() < 0.3) {
+            this.aiAction = 'retreat';
+            this.aiTimer = 25;
+          } else {
+            this.aiAction = 'block';
+            this.aiTimer = 15;
+          }
         }
       }
       input = { left: false, right: false, up: false, punch: false, kick: false, block: false };
@@ -757,7 +816,8 @@ class Player {
     if (!this.state.attackHitFrame && (this.state.punch === 8 || this.state.kick === 10)) {
       this.state.attackHitFrame = true;
       const reach = this.state.punch > 0 ? 75 : 90;
-      const damage = this.state.punch > 0 ? 7 : 11;
+      const baseDamage = this.state.punch > 0 ? 7 : 11;
+      const damage = (difficulty === 'lotte' && other.isAI) ? 100 : baseDamage;
       const hitX = this.x + this.facing * reach;
       const dx = Math.abs(hitX - other.x);
       const dy = Math.abs(this.y - other.y);
@@ -970,6 +1030,13 @@ function showScreen(id) {
 // ==================================================
 document.getElementById('btn-1p').onclick = () => { mode = '1p'; resetSelect(); showScreen('select-screen'); };
 document.getElementById('btn-2p').onclick = () => { mode = '2p'; resetSelect(); showScreen('select-screen'); };
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.onclick = () => {
+    difficulty = btn.dataset.diff;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('diff-active'));
+    btn.classList.add('diff-active');
+  };
+});
 document.getElementById('btn-back').onclick = () => showScreen('title-screen');
 document.getElementById('btn-fight').onclick = () => startFight();
 document.getElementById('btn-rematch').onclick = () => startFight();
@@ -977,8 +1044,18 @@ document.getElementById('btn-menu').onclick = () => showScreen('title-screen');
 
 function resetSelect() {
   p1Idx = -1; p2Idx = -1; selectingFor = 1;
+  difficulty = 'normal';
   document.getElementById('btn-fight').disabled = true;
   document.getElementById('select-info').textContent = 'PLAYER 1: WÄHLE EINEN KÄMPFER';
+  const diffSel = document.getElementById('difficulty-selector');
+  if (mode === '1p') {
+    diffSel.classList.remove('hidden');
+    document.querySelectorAll('.diff-btn').forEach(b => {
+      b.classList.toggle('diff-active', b.dataset.diff === 'normal');
+    });
+  } else {
+    diffSel.classList.add('hidden');
+  }
   makeFighterGrid();
 }
 
