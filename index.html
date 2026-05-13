@@ -201,7 +201,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 148px;
+    height: 82px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -292,30 +292,20 @@
 
   <!-- TOUCH CONTROLS (overlaid during fight) -->
   <div id="touch-controls" class="hidden">
-    <!-- P1: left side -->
-    <div class="touch-zone" id="touch-p1-zone">
+    <!-- Bewegung: links -->
+    <div class="touch-zone">
       <div class="touch-row">
         <button class="touch-btn" data-key="a">&#9664;</button>
         <button class="touch-btn touch-jump" data-key="w">&#9650;</button>
         <button class="touch-btn" data-key="d">&#9654;</button>
       </div>
+    </div>
+    <!-- Angriff: rechts -->
+    <div class="touch-zone">
       <div class="touch-row">
         <button class="touch-btn touch-blk" data-key="s">BLK</button>
         <button class="touch-btn touch-pow" data-key="f">POW</button>
         <button class="touch-btn touch-kck" data-key="g">KCK</button>
-      </div>
-    </div>
-    <!-- P2: right side (hidden in 1P mode) -->
-    <div class="touch-zone" id="touch-p2-zone">
-      <div class="touch-row">
-        <button class="touch-btn" data-key="p2_left">&#9664;</button>
-        <button class="touch-btn touch-jump" data-key="p2_up">&#9650;</button>
-        <button class="touch-btn" data-key="p2_right">&#9654;</button>
-      </div>
-      <div class="touch-row">
-        <button class="touch-btn touch-blk" data-key="p2_block">BLK</button>
-        <button class="touch-btn touch-pow" data-key="p2_punch">POW</button>
-        <button class="touch-btn touch-kck" data-key="p2_kick">KCK</button>
       </div>
     </div>
   </div>
@@ -338,16 +328,16 @@
 // ==================================================
 const FIGHTERS = [
   // Top row (5)
-  { name: 'JONAS',    sprite: { x: 0.045, y: 0.155, w: 0.165, h: 0.350 }, fb: { shirt:'#222', pants:'#222', hair:'#5a3d2b', glasses:true } },
+  { name: 'FABIAN',    sprite: { x: 0.045, y: 0.155, w: 0.165, h: 0.350 }, fb: { shirt:'#222', pants:'#222', hair:'#5a3d2b', glasses:true } },
   { name: 'TIM',      sprite: { x: 0.220, y: 0.155, w: 0.165, h: 0.350 }, fb: { shirt:'#222', pants:'#444', hair:'#c88a3a', glasses:true, weapon:'knife' } },
-  { name: 'PEACE',    sprite: { x: 0.395, y: 0.155, w: 0.150, h: 0.350 }, fb: { shirt:'#222', pants:'#666', hair:'#3a2a1a', hat:'cap', glasses:true } },
-  { name: 'CREW',     sprite: { x: 0.555, y: 0.155, w: 0.130, h: 0.360 }, fb: { shirt:'#222', pants:'#3a4a6a', hair:'#5a3d2b', female:true } },
-  { name: 'MULLET',   sprite: { x: 0.755, y: 0.155, w: 0.170, h: 0.350 }, fb: { shirt:'#222', pants:'#444', hair:'#c88a3a', hat:'cone' } },
+  { name: 'NAIBI',    sprite: { x: 0.395, y: 0.155, w: 0.150, h: 0.350 }, fb: { shirt:'#222', pants:'#666', hair:'#3a2a1a', hat:'cap', glasses:true } },
+  { name: 'MAGGI',     sprite: { x: 0.555, y: 0.155, w: 0.130, h: 0.360 }, fb: { shirt:'#222', pants:'#3a4a6a', hair:'#5a3d2b', female:true } },
+  { name: 'FLIPPER',   sprite: { x: 0.755, y: 0.155, w: 0.170, h: 0.350 }, fb: { shirt:'#222', pants:'#444', hair:'#c88a3a', hat:'cone' } },
   // Bottom row (4 + Scorpion)
   { name: 'SCORPION', sprite: { x: 0.005, y: 0.490, w: 0.155, h: 0.440 }, fb: { shirt:'#ffcc00', pants:'#000', hair:'#000', ninja:true } },
-  { name: 'CONE',     sprite: { x: 0.225, y: 0.475, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#a0926a', hair:'#3a2a1a', hat:'cone', longhair:true } },
+  { name: 'TOM',     sprite: { x: 0.225, y: 0.475, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#a0926a', hair:'#3a2a1a', hat:'cone', longhair:true } },
   { name: 'LUKAS',    sprite: { x: 0.410, y: 0.490, w: 0.155, h: 0.385 }, fb: { shirt:'#222', pants:'#444', hair:'#1a1a1a', moustache:true } },
-  { name: 'CHRIS',    sprite: { x: 0.580, y: 0.485, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#444', hair:'#3a2a1a', hat:'cap' } }
+  { name: 'JULIUS',    sprite: { x: 0.580, y: 0.485, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#444', hair:'#3a2a1a', hat:'cap' } }
 ];
 
 // ==================================================
@@ -917,7 +907,6 @@ function startFight() {
   document.getElementById('p1-hp').style.width = '100%';
   document.getElementById('p2-hp').style.width = '100%';
   document.getElementById('timer').textContent = timer;
-  document.getElementById('touch-p2-zone').classList.toggle('hidden', mode === '1p');
   showScreen('fight-screen');
   loop();
 }
