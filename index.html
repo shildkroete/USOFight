@@ -377,9 +377,9 @@ const FIGHTERS = [
   { name: 'LUKAS',    sprite: { x: 0.410, y: 0.490, w: 0.155, h: 0.385 }, fb: { shirt:'#222', pants:'#444', hair:'#1a1a1a', moustache:true } },
   { name: 'JULIUS',    sprite: { x: 0.580, y: 0.485, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#444', hair:'#3a2a1a', hat:'cap' } },
   // Story mode opponents (not selectable by player)
-  { name: 'RADLER',  noSprite: true, hidden: true, fb: { shirt:'#f5e030', pants:'#88cc55', hair:'#fff0aa' } },
-  { name: 'WEIZEN',  noSprite: true, hidden: true, fb: { shirt:'#d4a843', pants:'#8b6030', hair:'#c8a855', moustache: true } },
-  { name: 'BIER',    noSprite: true, hidden: true, fb: { shirt:'#c07020', pants:'#5a3010', hair:'#3a1a08' } }
+  { name: 'RADLER', noSprite: true, hidden: true, isBottle: true, bottleCol: '#d0e840', capCol: '#44bb33', labelCol: '#f8f8cc' },
+  { name: 'WEIZEN', noSprite: true, hidden: true, isBottle: true, bottleCol: '#c89030', capCol: '#e8c040', labelCol: '#f5e8c0' },
+  { name: 'BIER',   noSprite: true, hidden: true, isBottle: true, bottleCol: '#5a2e0a', capCol: '#dddddd', labelCol: '#f0d060' }
 ];
 
 // ==================================================
@@ -503,6 +503,13 @@ function drawPhotoFighter(ctx, x, y, targetH, f, facing, state) {
 function drawFighterThumbnail(canvas, f) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (f.isBottle) {
+    ctx.save();
+    ctx.scale(0.6, 0.6);
+    drawBottleFighter(ctx, canvas.width/2/0.6, (canvas.height-5)/0.6, f, 1, {});
+    ctx.restore();
+    return;
+  }
   if (spriteLoaded && !f.noSprite) {
     const r = getSpriteRect(f);
     const aspect = r.sw / r.sh;
@@ -616,9 +623,209 @@ function drawFallbackFighter(ctx, x, y, scale, f, facing, state) {
   ctx.restore();
 }
 
+// ==================================================
+// BOTTLE FIGHTER (story mode opponents)
+// ==================================================
+function drawBottleFighter(ctx, x, y, fighter, facing, state) {
+  state = state || {};
+  const bc  = fighter.bottleCol || '#88cc44';
+  const cap = fighter.capCol    || '#888';
+  const lbl = fighter.labelCol  || '#fff';
+
+  const walkBob = state.walkPhase ? Math.sin(state.walkPhase) * 3 : 0;
+  const shakeX  = state.hit > 0 ? (Math.random()-0.5)*8 : 0;
+  const shakeY  = state.hit > 0 ? (Math.random()-0.5)*5 : 0;
+  let lungeX = 0;
+  if (state.punch > 0) lungeX = facing * 14 * (state.punch / 12);
+  if (state.kick  > 0) lungeX = facing * 18 * (state.kick  / 16);
+
+  ctx.save();
+  ctx.translate(x + lungeX + shakeX, y + walkBob + shakeY);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 22, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bottle outline path (reused for fill + hit flash)
+  function bottlePath() {
+    ctx.beginPath();
+    ctx.moveTo(-18, 0);
+    ctx.lineTo(-18, -12);
+    ctx.lineTo(-16, -12);
+    ctx.lineTo(-16, -108);
+    ctx.quadraticCurveTo(-16, -126, -8, -132);
+    ctx.lineTo(-8,  -158);
+    ctx.lineTo( 8,  -158);
+    ctx.quadraticCurveTo(16, -126, 16, -108);
+    ctx.lineTo(16, -12);
+    ctx.lineTo(18, -12);
+    ctx.lineTo(18,   0);
+    ctx.closePath();
+  }
+
+  // Glass body
+  ctx.fillStyle = bc;
+  bottlePath();
+  ctx.fill();
+
+  // Highlight strip
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.beginPath();
+  ctx.moveTo(-11, -12);
+  ctx.lineTo(-11, -106);
+  ctx.quadraticCurveTo(-11, -122, -5, -127);
+  ctx.lineTo(-5, -158);
+  ctx.lineTo(-1, -158);
+  ctx.lineTo(-1, -127);
+  ctx.quadraticCurveTo(-5, -122, -7, -106);
+  ctx.lineTo(-7, -12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Label
+  ctx.fillStyle = lbl;
+  ctx.fillRect(-13, -98, 26, 58);
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-13, -98, 26, 58);
+
+  // Drink name
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 10px Impact';
+  ctx.textAlign = 'center';
+  ctx.fillText(fighter.name, 0, -74);
+
+  // Eyes
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(-5, -87, 2.5, 0, Math.PI * 2);
+  ctx.arc( 5, -87, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyebrows
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (fighter.name === 'BIER') {           // angry
+    ctx.moveTo(-8,-92); ctx.lineTo(-2,-90);
+    ctx.moveTo( 8,-92); ctx.lineTo( 2,-90);
+  } else if (fighter.name === 'WEIZEN') {  // neutral
+    ctx.moveTo(-8,-92); ctx.lineTo(-2,-92);
+    ctx.moveTo( 8,-92); ctx.lineTo( 2,-92);
+  } else {                                 // happy (Radler)
+    ctx.moveTo(-8,-93); ctx.lineTo(-2,-91);
+    ctx.moveTo( 8,-93); ctx.lineTo( 2,-91);
+  }
+  ctx.stroke();
+
+  // Mouth
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  if (state.hit > 0) {
+    ctx.moveTo(-5,-79); ctx.quadraticCurveTo(0,-82, 5,-79); // wince
+  } else if (fighter.name === 'BIER') {
+    ctx.moveTo(-5,-80); ctx.lineTo(5,-80);  // grumpy flat
+  } else {
+    ctx.arc(0,-83, 5, 0.15*Math.PI, 0.85*Math.PI); // smile
+  }
+  ctx.stroke();
+
+  // Cap
+  ctx.fillStyle = cap;
+  ctx.fillRect(-11, -175, 22, 18);
+  ctx.beginPath();
+  ctx.arc(0, -175, 11, Math.PI, 0);
+  ctx.fill();
+  // Cap ridges
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1;
+  for (let ri = 0; ri < 3; ri++) {
+    ctx.beginPath();
+    ctx.moveTo(-11, -173 + ri*5);
+    ctx.lineTo( 11, -173 + ri*5);
+    ctx.stroke();
+  }
+
+  // Arms (small rounded stubs, animate with walk)
+  const swing = state.walkPhase ? Math.sin(state.walkPhase) * 7 : 0;
+  ctx.fillStyle = bc;
+  ctx.lineCap = 'round';
+
+  // Attack arm (toward facing direction)
+  const atkReach = state.punch > 0 ? 10 + 26*(state.punch/12) : 10;
+  ctx.beginPath();
+  ctx.ellipse(facing*16, -68, (atkReach+8)/2, 5, facing*(state.punch>0?0:0.2), 0, Math.PI*2);
+  ctx.fill();
+  // passive arm opposite side
+  ctx.beginPath();
+  ctx.ellipse(-facing*16, -68 + swing*0.5, 12, 5, -facing*0.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Kick leg
+  if (state.kick > 0) {
+    const kExt = 20*(state.kick/16);
+    ctx.save();
+    ctx.translate(facing*18, -8);
+    ctx.rotate(facing*0.5*(state.kick/16)*Math.PI);
+    ctx.fillRect(0, -4, kExt, 8);
+    ctx.restore();
+  }
+
+  // Hit flash
+  if (state.hitFlash > 0) {
+    ctx.fillStyle = 'rgba(255,80,80,' + state.hitFlash + ')';
+    bottlePath();
+    ctx.fill();
+  }
+
+  // Block shield
+  if (state.blocking) {
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#33aaff';
+    ctx.beginPath();
+    ctx.arc(0, -90, 40, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+
+  // Attack burst effect
+  if (state.punch > 0 || state.kick > 0) {
+    const reach = state.punch > 0 ? 55 : 65;
+    const fx = x + facing*reach + lungeX;
+    const fy = y - (state.punch > 0 ? 125 : 55);
+    const t  = state.punch > 0 ? state.punch/12 : state.kick/16;
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.rotate(Math.random()*0.4);
+    ctx.fillStyle = 'rgba(255,235,0,' + t + ')';
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = (i/16)*Math.PI*2;
+      const r = i%2===0 ? 28*t : 11*t;
+      if (i===0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+      else        ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold ' + (13*t) + 'px Impact';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(state.punch > 0 ? 'POW!' : 'KICK!', 0, 0);
+    ctx.restore();
+  }
+}
+
 // Unified drawing function used in fight
 function drawFighter(ctx, x, y, fighter, facing, state) {
-  if (spriteLoaded && !fighter.noSprite) {
+  if (fighter.isBottle) {
+    drawBottleFighter(ctx, x, y, fighter, facing, state);
+  } else if (spriteLoaded && !fighter.noSprite) {
     drawPhotoFighter(ctx, x, y, 220, fighter, facing, state);
   } else {
     drawFallbackFighter(ctx, x, y, 2.0, fighter, facing, state);
