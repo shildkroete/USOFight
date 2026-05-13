@@ -195,6 +195,56 @@
     font-size: 12px;
     letter-spacing: 1px;
   }
+  /* ---- TOUCH CONTROLS ---- */
+  #touch-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 148px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 14px 14px;
+    z-index: 15;
+    pointer-events: none;
+  }
+  .touch-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: all;
+  }
+  .touch-row { display: flex; gap: 8px; }
+  .touch-btn {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.10);
+    border: 2px solid rgba(255,255,255,0.30);
+    color: #fff;
+    font-size: 13px;
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    letter-spacing: 1px;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: background 0.08s, transform 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .touch-btn.active {
+    background: rgba(255,136,0,0.55);
+    border-color: #ff8800;
+    transform: scale(0.91);
+  }
+  .touch-jump { border-color: rgba(100,200,255,0.50); }
+  .touch-pow  { border-color: rgba(255,80,80,0.50); }
+  .touch-kck  { border-color: rgba(255,200,0,0.50); }
+  .touch-blk  { border-color: rgba(50,220,100,0.50); }
 </style>
 </head>
 <body>
@@ -238,6 +288,36 @@
     </div>
     <div class="timer" id="timer">99</div>
     <canvas id="canvas" width="960" height="600"></canvas>
+  </div>
+
+  <!-- TOUCH CONTROLS (overlaid during fight) -->
+  <div id="touch-controls" class="hidden">
+    <!-- P1: left side -->
+    <div class="touch-zone" id="touch-p1-zone">
+      <div class="touch-row">
+        <button class="touch-btn" data-key="a">&#9664;</button>
+        <button class="touch-btn touch-jump" data-key="w">&#9650;</button>
+        <button class="touch-btn" data-key="d">&#9654;</button>
+      </div>
+      <div class="touch-row">
+        <button class="touch-btn touch-blk" data-key="s">BLK</button>
+        <button class="touch-btn touch-pow" data-key="f">POW</button>
+        <button class="touch-btn touch-kck" data-key="g">KCK</button>
+      </div>
+    </div>
+    <!-- P2: right side (hidden in 1P mode) -->
+    <div class="touch-zone" id="touch-p2-zone">
+      <div class="touch-row">
+        <button class="touch-btn" data-key="p2_left">&#9664;</button>
+        <button class="touch-btn touch-jump" data-key="p2_up">&#9650;</button>
+        <button class="touch-btn" data-key="p2_right">&#9654;</button>
+      </div>
+      <div class="touch-row">
+        <button class="touch-btn touch-blk" data-key="p2_block">BLK</button>
+        <button class="touch-btn touch-pow" data-key="p2_punch">POW</button>
+        <button class="touch-btn touch-kck" data-key="p2_kick">KCK</button>
+      </div>
+    </div>
   </div>
 
   <!-- KO SCREEN -->
@@ -716,6 +796,8 @@ class Player {
 // INPUT
 // ==================================================
 const keys = {};
+const touchKeys = {};
+
 window.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
@@ -724,16 +806,45 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
+function setupTouchControls() {
+  document.querySelectorAll('#touch-controls .touch-btn').forEach(btn => {
+    const key = btn.dataset.key;
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      touchKeys[key] = true;
+      btn.classList.add('active');
+      btn.setPointerCapture(e.pointerId);
+    });
+    btn.addEventListener('pointerup', e => {
+      e.preventDefault();
+      touchKeys[key] = false;
+      btn.classList.remove('active');
+    });
+    btn.addEventListener('pointercancel', () => {
+      touchKeys[key] = false;
+      btn.classList.remove('active');
+    });
+  });
+}
+
 function getP1Input() {
   return {
-    left: keys['a'], right: keys['d'], up: keys['w'],
-    punch: keys['f'], kick: keys['g'], block: keys['s']
+    left:  keys['a'] || touchKeys['a'],
+    right: keys['d'] || touchKeys['d'],
+    up:    keys['w'] || touchKeys['w'],
+    punch: keys['f'] || touchKeys['f'],
+    kick:  keys['g'] || touchKeys['g'],
+    block: keys['s'] || touchKeys['s']
   };
 }
 function getP2Input() {
   return {
-    left: keys['arrowleft'], right: keys['arrowright'], up: keys['arrowup'],
-    punch: keys['k'], kick: keys['l'], block: keys['arrowdown']
+    left:  keys['arrowleft']  || touchKeys['p2_left'],
+    right: keys['arrowright'] || touchKeys['p2_right'],
+    up:    keys['arrowup']    || touchKeys['p2_up'],
+    punch: keys['k']          || touchKeys['p2_punch'],
+    kick:  keys['l']          || touchKeys['p2_kick'],
+    block: keys['arrowdown']  || touchKeys['p2_block']
   };
 }
 
@@ -806,6 +917,7 @@ function startFight() {
   document.getElementById('p1-hp').style.width = '100%';
   document.getElementById('p2-hp').style.width = '100%';
   document.getElementById('timer').textContent = timer;
+  document.getElementById('touch-p2-zone').classList.toggle('hidden', mode === '1p');
   showScreen('fight-screen');
   loop();
 }
@@ -856,6 +968,12 @@ function showScreen(id) {
     document.getElementById(s).classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
+  const tc = document.getElementById('touch-controls');
+  if (id === 'fight-screen') {
+    tc.classList.remove('hidden');
+  } else {
+    tc.classList.add('hidden');
+  }
 }
 
 // ==================================================
@@ -878,6 +996,7 @@ function resetSelect() {
 // ==================================================
 // INIT
 // ==================================================
+setupTouchControls();
 makeFighterGrid();
 showScreen('title-screen');
 </script>
