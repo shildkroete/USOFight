@@ -277,6 +277,7 @@
     <div class="mode-buttons">
       <button id="btn-1p">1 PLAYER</button>
       <button id="btn-2p">2 PLAYER</button>
+      <button id="btn-story" style="background:#33cc66;border-color:#000;">STORY</button>
     </div>
     <div class="controls-info">
       P1: A/D bewegen, W springen, S blocken, F Faust, G Kick &nbsp;|&nbsp;
@@ -315,6 +316,7 @@
       </div>
     </div>
     <div class="timer" id="timer">99</div>
+    <div id="story-label" class="hidden" style="position:absolute;top:58px;left:50%;transform:translateX(-50%);font-size:13px;color:#33cc66;text-shadow:1px 1px 0 #000;z-index:5;letter-spacing:2px;pointer-events:none;"></div>
     <canvas id="canvas" width="960" height="600"></canvas>
   </div>
 
@@ -346,6 +348,14 @@
     <button id="btn-menu" style="background:#555;color:#fff;">HAUPTMENÜ</button>
   </div>
 
+  <!-- STORY COMPLETE SCREEN -->
+  <div id="story-complete-screen" class="screen hidden" style="background:linear-gradient(180deg,#1a3320 0%,#0a1a0a 100%);">
+    <h1 style="color:#33ff66;text-shadow:4px 4px 0 #000,0 0 30px #33ff66;font-size:52px;">STORY COMPLETE!</h1>
+    <div style="color:#ffeb00;font-size:20px;letter-spacing:3px;margin:10px 0;">RADLER  -  WEIZEN  -  BIER</div>
+    <div style="color:#aaa;font-size:14px;letter-spacing:2px;margin-bottom:24px;">ALLE GEGNER BESIEGT!</div>
+    <button id="btn-story-menu" style="background:#33cc66;border-color:#000;">HAUPTMENU</button>
+  </div>
+
 </div>
 
 <script>
@@ -365,7 +375,11 @@ const FIGHTERS = [
   { name: 'SCORPION', sprite: { x: 0.005, y: 0.490, w: 0.155, h: 0.440 }, fb: { shirt:'#ffcc00', pants:'#000', hair:'#000', ninja:true } },
   { name: 'TOM',     sprite: { x: 0.225, y: 0.475, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#a0926a', hair:'#3a2a1a', hat:'cone', longhair:true } },
   { name: 'LUKAS',    sprite: { x: 0.410, y: 0.490, w: 0.155, h: 0.385 }, fb: { shirt:'#222', pants:'#444', hair:'#1a1a1a', moustache:true } },
-  { name: 'JULIUS',    sprite: { x: 0.580, y: 0.485, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#444', hair:'#3a2a1a', hat:'cap' } }
+  { name: 'JULIUS',    sprite: { x: 0.580, y: 0.485, w: 0.165, h: 0.395 }, fb: { shirt:'#222', pants:'#444', hair:'#3a2a1a', hat:'cap' } },
+  // Story mode opponents (not selectable by player)
+  { name: 'RADLER',  noSprite: true, hidden: true, fb: { shirt:'#f5e030', pants:'#88cc55', hair:'#fff0aa' } },
+  { name: 'WEIZEN',  noSprite: true, hidden: true, fb: { shirt:'#d4a843', pants:'#8b6030', hair:'#c8a855', moustache: true } },
+  { name: 'BIER',    noSprite: true, hidden: true, fb: { shirt:'#c07020', pants:'#5a3010', hair:'#3a1a08' } }
 ];
 
 // ==================================================
@@ -489,7 +503,7 @@ function drawPhotoFighter(ctx, x, y, targetH, f, facing, state) {
 function drawFighterThumbnail(canvas, f) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (spriteLoaded) {
+  if (spriteLoaded && !f.noSprite) {
     const r = getSpriteRect(f);
     const aspect = r.sw / r.sh;
     let h = canvas.height - 10;
@@ -604,7 +618,7 @@ function drawFallbackFighter(ctx, x, y, scale, f, facing, state) {
 
 // Unified drawing function used in fight
 function drawFighter(ctx, x, y, fighter, facing, state) {
-  if (spriteLoaded) {
+  if (spriteLoaded && !fighter.noSprite) {
     drawPhotoFighter(ctx, x, y, 220, fighter, facing, state);
   } else {
     drawFallbackFighter(ctx, x, y, 2.0, fighter, facing, state);
@@ -618,6 +632,7 @@ function makeFighterGrid() {
   const grid = document.getElementById('fighter-grid');
   grid.innerHTML = '';
   FIGHTERS.forEach((f, i) => {
+    if (f.hidden) return;
     const card = document.createElement('div');
     card.className = 'fighter-card';
     card.dataset.idx = i;
@@ -645,18 +660,26 @@ let difficulty = 'normal';
 let p1Idx = -1, p2Idx = -1;
 let selectingFor = 1;
 
+const STORY_FIGHTS = ['RADLER', 'WEIZEN', 'BIER'];
+const STORY_DIFFICULTIES = ['lotte', 'normal', 'hart'];
+let storyStage = 0;
+let storyAdvanceOnRematch = false;
+
 function selectFighter(idx, card) {
   if (selectingFor === 1) {
     p1Idx = idx;
     document.querySelectorAll('.fighter-card').forEach(c => c.classList.remove('selected-p1'));
     card.classList.add('selected-p1');
     if (mode === '1p') {
+      const pickable = FIGHTERS.reduce((acc, f, i) => { if (!f.hidden) acc.push(i); return acc; }, []);
       let ai;
-      do { ai = Math.floor(Math.random() * FIGHTERS.length); } while (ai === p1Idx);
+      do { ai = pickable[Math.floor(Math.random() * pickable.length)]; } while (ai === p1Idx);
       p2Idx = ai;
-      const aiCard = document.querySelectorAll('.fighter-card')[ai];
-      aiCard.classList.add('selected-p2');
+      document.querySelector('.fighter-card[data-idx="' + ai + '"]').classList.add('selected-p2');
       document.getElementById('select-info').textContent = 'GEGNER: ' + FIGHTERS[ai].name;
+      document.getElementById('btn-fight').disabled = false;
+    } else if (mode === 'story') {
+      document.getElementById('select-info').textContent = 'STORY: KAEMPF DICH DURCH!';
       document.getElementById('btn-fight').disabled = false;
     } else {
       selectingFor = 2;
@@ -957,16 +980,28 @@ function drawStage() {
 let p1, p2, timer, gameRunning = false, lastTimerTick = 0;
 
 function startFight() {
+  if (mode === 'story') {
+    p2Idx = FIGHTERS.findIndex(f => f.name === STORY_FIGHTS[storyStage]);
+    difficulty = STORY_DIFFICULTIES[storyStage];
+  }
   p1 = new Player(p1Idx, 250, 1, false);
-  p2 = new Player(p2Idx, 710, -1, mode === '1p');
+  p2 = new Player(p2Idx, 710, -1, mode !== '2p');
   timer = 99;
   gameRunning = true;
+  storyAdvanceOnRematch = false;
   lastTimerTick = Date.now();
   document.getElementById('p1-name').textContent = FIGHTERS[p1Idx].name;
   document.getElementById('p2-name').textContent = FIGHTERS[p2Idx].name;
   document.getElementById('p1-hp').style.width = '100%';
   document.getElementById('p2-hp').style.width = '100%';
   document.getElementById('timer').textContent = timer;
+  const storyLabel = document.getElementById('story-label');
+  if (mode === 'story') {
+    storyLabel.textContent = 'STAGE ' + (storyStage + 1) + '/3  -  ' + STORY_FIGHTS[storyStage];
+    storyLabel.classList.remove('hidden');
+  } else {
+    storyLabel.classList.add('hidden');
+  }
   showScreen('fight-screen');
   loop();
 }
@@ -996,11 +1031,28 @@ function loop() {
   if (p1.hp <= 0 || p2.hp <= 0 || timer <= 0) {
     gameRunning = false;
     setTimeout(() => {
+      const playerWon = p1.hp > p2.hp;
       let winner;
-      if (p1.hp > p2.hp) winner = FIGHTERS[p1Idx].name + ' WINS!';
+      if (playerWon) winner = FIGHTERS[p1Idx].name + ' WINS!';
       else if (p2.hp > p1.hp) winner = FIGHTERS[p2Idx].name + ' WINS!';
       else winner = 'DRAW!';
       document.getElementById('winner-text').textContent = winner;
+      const btnRematch = document.getElementById('btn-rematch');
+      btnRematch.style.display = '';
+      storyAdvanceOnRematch = false;
+      if (mode === 'story') {
+        if (playerWon && storyStage < 2) {
+          btnRematch.textContent = 'WEITER';
+          storyAdvanceOnRematch = true;
+        } else if (playerWon && storyStage >= 2) {
+          showScreen('story-complete-screen');
+          return;
+        } else {
+          btnRematch.textContent = 'NOCHMAL';
+        }
+      } else {
+        btnRematch.textContent = 'REMATCH';
+      }
       showScreen('ko-screen');
     }, 800);
     return;
@@ -1013,7 +1065,7 @@ function loop() {
 // SCREEN MANAGEMENT
 // ==================================================
 function showScreen(id) {
-  ['title-screen', 'select-screen', 'fight-screen', 'ko-screen'].forEach(s => {
+  ['title-screen', 'select-screen', 'fight-screen', 'ko-screen', 'story-complete-screen'].forEach(s => {
     document.getElementById(s).classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
@@ -1030,6 +1082,15 @@ function showScreen(id) {
 // ==================================================
 document.getElementById('btn-1p').onclick = () => { mode = '1p'; resetSelect(); showScreen('select-screen'); };
 document.getElementById('btn-2p').onclick = () => { mode = '2p'; resetSelect(); showScreen('select-screen'); };
+document.getElementById('btn-story').onclick = () => { mode = 'story'; storyStage = 0; resetSelect(); showScreen('select-screen'); };
+document.getElementById('btn-story-menu').onclick = () => showScreen('title-screen');
+document.getElementById('btn-rematch').onclick = () => {
+  if (mode === 'story' && storyAdvanceOnRematch) {
+    storyStage++;
+    storyAdvanceOnRematch = false;
+  }
+  startFight();
+};
 document.querySelectorAll('.diff-btn').forEach(btn => {
   btn.onclick = () => {
     difficulty = btn.dataset.diff;
@@ -1039,21 +1100,24 @@ document.querySelectorAll('.diff-btn').forEach(btn => {
 });
 document.getElementById('btn-back').onclick = () => showScreen('title-screen');
 document.getElementById('btn-fight').onclick = () => startFight();
-document.getElementById('btn-rematch').onclick = () => startFight();
 document.getElementById('btn-menu').onclick = () => showScreen('title-screen');
 
 function resetSelect() {
   p1Idx = -1; p2Idx = -1; selectingFor = 1;
   difficulty = 'normal';
   document.getElementById('btn-fight').disabled = true;
-  document.getElementById('select-info').textContent = 'PLAYER 1: WÄHLE EINEN KÄMPFER';
   const diffSel = document.getElementById('difficulty-selector');
   if (mode === '1p') {
+    document.getElementById('select-info').textContent = 'PLAYER 1: WÄHLE EINEN KÄMPFER';
     diffSel.classList.remove('hidden');
     document.querySelectorAll('.diff-btn').forEach(b => {
       b.classList.toggle('diff-active', b.dataset.diff === 'normal');
     });
+  } else if (mode === 'story') {
+    document.getElementById('select-info').textContent = 'STORY: WAEHLE DEINEN KAEMPFER';
+    diffSel.classList.add('hidden');
   } else {
+    document.getElementById('select-info').textContent = 'PLAYER 1: WÄHLE EINEN KÄMPFER';
     diffSel.classList.add('hidden');
   }
   makeFighterGrid();
